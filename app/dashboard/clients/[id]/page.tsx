@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { ArrowLeft, Phone, Mail, Home, Languages, ClipboardPlus } from 'lucide-react'
+import { ArrowLeft, Phone, Mail, Home, Languages, ClipboardPlus, CalendarDays } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import HandoffSummary from '@/components/HandoffSummary'
 import TTSButton from '@/components/TTSButton'
@@ -49,12 +49,20 @@ export default async function ClientProfilePage({ params }: { params: Promise<{ 
               <p className="text-muted-foreground">Client since {formatDate(client.created_at)}</p>
             </div>
           </div>
-          <Button asChild>
-            <Link href={`/dashboard/services/new?client_id=${client.id}`}>
-              <ClipboardPlus className="h-4 w-4" aria-hidden="true" />
-              Log Service
-            </Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button asChild variant="outline">
+              <Link href={`/dashboard/calendar?client_id=${client.id}`}>
+                <CalendarDays className="h-4 w-4" aria-hidden="true" />
+                Schedule
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link href={`/dashboard/services/new?client_id=${client.id}`}>
+                <ClipboardPlus className="h-4 w-4" aria-hidden="true" />
+                Log Service
+              </Link>
+            </Button>
+          </div>
         </div>
       </div>
 

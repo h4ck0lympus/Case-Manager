@@ -38,6 +38,11 @@ export default async function DashboardPage() {
   const { count: pendingFollowUps } = await supabase
     .from('follow_ups').select('*', { count: 'exact', head: true }).eq('completed', false)
 
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const nextWeek = new Date(today)
+  nextWeek.setDate(nextWeek.getDate() + 7)
+
   const { data: recentServices } = await supabase
     .from('service_entries')
     .select('*, clients(first_name, last_name)')
@@ -50,6 +55,22 @@ export default async function DashboardPage() {
     .neq('ai_risk_flags', '[]')
     .order('service_date', { ascending: false })
     .limit(3)
+
+  const { data: upcomingAppointments } = await supabase
+    .from('appointments')
+    .select('id, client_id, title, starts_at, clients(first_name, last_name)')
+    .gte('starts_at', today.toISOString())
+    .lte('starts_at', nextWeek.toISOString())
+    .order('starts_at', { ascending: true })
+    .limit(5)
+
+  const { data: dueFollowUps } = await supabase
+    .from('follow_ups')
+    .select('id, client_id, description, due_date, urgency, clients(first_name, last_name)')
+    .eq('completed', false)
+    .lte('due_date', nextWeek.toISOString().slice(0, 10))
+    .order('due_date', { ascending: true })
+    .limit(5)
 
   const quarterStart = getQuarterStart(new Date())
   const quarterStartDate = quarterStart.toISOString().slice(0, 10)
@@ -227,6 +248,55 @@ export default async function DashboardPage() {
           </Card>
         </div>
       )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Notifications</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {((dueFollowUps?.length ?? 0) > 0 || (upcomingAppointments?.length ?? 0) > 0) ? (
+              <>
+                {(dueFollowUps ?? []).map((item: any) => (
+                  <div key={`followup-${item.id}`} className="rounded-md border p-3">
+                    <p className="text-sm font-medium">{item.description}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Follow-up for {item.clients?.first_name} {item.clients?.last_name} due {formatDate(item.due_date)}
+                    </p>
+                  </div>
+                ))}
+                {(upcomingAppointments ?? []).map((item: any) => (
+                  <div key={`appointment-${item.id}`} className="rounded-md border p-3">
+                    <p className="text-sm font-medium">{item.title}</p>
+                    <p className="text-xs text-muted-foreground">
+                      Appointment for {item.clients?.first_name} {item.clients?.last_name} at {formatDate(item.starts_at)}
+                    </p>
+                  </div>
+                ))}
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">No upcoming reminders right now.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Schedule</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              View appointments, pending follow-ups, and weekly scheduling in the calendar.
+            </p>
+            <Link
+              href="/dashboard/calendar"
+              className="inline-flex rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+            >
+              Open Calendar
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Recent services */}

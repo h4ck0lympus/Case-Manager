@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import {
-  LayoutDashboard, Users, ClipboardList, ShieldCheck, FileText,
+  LayoutDashboard, Users, ClipboardList, ShieldCheck, FileText, CalendarDays,
   Heart, LogOut, Menu, X
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -17,6 +17,7 @@ const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, exact: true },
   { href: '/dashboard/clients', label: 'Clients', icon: Users },
   { href: '/dashboard/services/new', label: 'Log Service', icon: ClipboardList },
+  { href: '/dashboard/calendar', label: 'Calendar', icon: CalendarDays },
   { href: '/dashboard/reports', label: 'Funder Reports', icon: FileText, adminOnly: true },
   { href: '/dashboard/audit', label: 'Audit Log', icon: ShieldCheck, adminOnly: true },
 ]
