@@ -1,4 +1,4 @@
-# CaseFlow
+# CareTrack
 
 A case management tool built for nonprofits. Replaces spreadsheets with something that actually works.
 
