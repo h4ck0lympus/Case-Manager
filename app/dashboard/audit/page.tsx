@@ -58,7 +58,7 @@ export default async function AuditLogPage() {
           <CardTitle className="text-sm font-medium text-muted-foreground">How it works</CardTitle>
         </CardHeader>
         <CardContent className="text-sm text-muted-foreground space-y-1">
-          <p>Each audit entry contains: <code className="bg-muted px-1 rounded text-xs">SHA256(previous_hash | timestamp | user | action | table | record_id)</code></p>
+          <p>Each audit entry contains: <code className="bg-muted px-1 rounded text-xs">SHA256(previous_hash | user_email | action | table | record_id)</code></p>
           <p>If any entry is modified or deleted, the hash chain breaks — making tampering cryptographically detectable.</p>
           <p>The <code className="bg-muted px-1 rounded text-xs">audit_log</code> table has no UPDATE or DELETE RLS policies — append-only at the database layer.</p>
         </CardContent>

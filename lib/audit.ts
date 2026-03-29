@@ -3,13 +3,12 @@ import { createClient } from './supabase/server'
 
 export function computeHash(
   previousHash: string,
-  timestamp: string,
-  userId: string,
+  userEmail: string,
   action: string,
   tableName: string,
   recordId: string
 ): string {
-  const payload = `${previousHash}|${timestamp}|${userId}|${action}|${tableName}|${recordId}`
+  const payload = `${previousHash}|${userEmail}|${action}|${tableName}|${recordId}`
   return createHash('sha256').update(payload).digest('hex')
 }
 
@@ -33,11 +32,9 @@ export async function appendAuditEntry(entry: AuditEntry) {
     .maybeSingle()
 
   const previousHash = last?.entry_hash ?? '0'.repeat(64)
-  const timestamp = new Date().toISOString()
   const entryHash = computeHash(
     previousHash,
-    timestamp,
-    entry.userId,
+    entry.userEmail,
     entry.action,
     entry.tableName,
     entry.recordId
@@ -52,7 +49,6 @@ export async function appendAuditEntry(entry: AuditEntry) {
     change_summary: entry.changeSummary ?? null,
     previous_hash: previousHash,
     entry_hash: entryHash,
-    timestamp,
   })
 
   if (error) {
@@ -70,11 +66,9 @@ export async function verifyChain(): Promise<{ valid: boolean; brokenAt?: number
   if (!entries || entries.length === 0) return { valid: true, totalEntries: 0 }
 
   for (let i = 1; i < entries.length; i++) {
-    const normalizedTimestamp = new Date(entries[i].timestamp).toISOString()
     const expected = computeHash(
       entries[i].previous_hash,
-      normalizedTimestamp,
-      entries[i].user_id ?? '',
+      entries[i].user_email,
       entries[i].action,
       entries[i].table_name,
       entries[i].record_id
