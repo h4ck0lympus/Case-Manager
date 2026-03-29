@@ -8,6 +8,19 @@ import { Users, ClipboardList, AlertTriangle, ShieldCheck, ShieldAlert, Trending
 import Link from 'next/link'
 import { formatDate } from '@/lib/utils'
 
+function getQuarterStart(date: Date) {
+  const month = Math.floor(date.getMonth() / 3) * 3
+  return new Date(Date.UTC(date.getFullYear(), month, 1))
+}
+
+function countBy(items: string[]) {
+  const counts = new Map<string, number>()
+  for (const item of items) counts.set(item, (counts.get(item) ?? 0) + 1)
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([label, count]) => ({ label, count }))
+}
+
 export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -37,6 +50,29 @@ export default async function DashboardPage() {
     .neq('ai_risk_flags', '[]')
     .order('service_date', { ascending: false })
     .limit(3)
+
+  const quarterStart = getQuarterStart(new Date())
+  const quarterStartDate = quarterStart.toISOString().slice(0, 10)
+
+  const { data: quarterServices } = await supabase
+    .from('service_entries')
+    .select('service_date, service_type, ai_risk_flags')
+    .gte('service_date', quarterStartDate)
+    .order('service_date', { ascending: true })
+
+  const recentQuarterServiceTypes = countBy(
+    (quarterServices ?? []).map((service: any) => service.service_type || 'Other'),
+  ).slice(0, 5)
+
+  const recentQuarterRiskFlags = countBy(
+    (quarterServices ?? []).flatMap((service: any) => Array.isArray(service.ai_risk_flags) ? service.ai_risk_flags : []),
+  ).slice(0, 5)
+
+  const recentQuarterMonths = countBy(
+    (quarterServices ?? []).map((service: any) =>
+      new Date(`${service.service_date}T00:00:00Z`).toLocaleString('en-US', { month: 'short', timeZone: 'UTC' }),
+    ),
+  )
 
   let chainStatus = null
   if (profile?.role === 'admin') {
@@ -165,6 +201,96 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {profile?.role === 'admin' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Recent Quarter Service Mix</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {recentQuarterServiceTypes.length > 0 ? (
+                recentQuarterServiceTypes.map((item) => {
+                  const max = recentQuarterServiceTypes[0]?.count ?? 1
+                  return (
+                    <div key={item.label} className="space-y-1">
+                      <div className="flex items-center justify-between gap-3 text-sm">
+                        <span className="truncate">{item.label}</span>
+                        <span className="text-muted-foreground">{item.count}</span>
+                      </div>
+                      <div className="h-2 rounded-full bg-muted">
+                        <div
+                          className="h-2 rounded-full bg-primary"
+                          style={{ width: `${(item.count / max) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  )
+                })
+              ) : (
+                <p className="text-sm text-muted-foreground">No quarter service data yet.</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Recent Quarter Trends</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-3">
+                <p className="text-sm font-medium">Monthly Volume</p>
+                {recentQuarterMonths.length > 0 ? (
+                  recentQuarterMonths.map((item) => {
+                    const max = Math.max(...recentQuarterMonths.map((entry) => entry.count), 1)
+                    return (
+                      <div key={item.label} className="space-y-1">
+                        <div className="flex items-center justify-between gap-3 text-sm">
+                          <span>{item.label}</span>
+                          <span className="text-muted-foreground">{item.count}</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-muted">
+                          <div
+                            className="h-2 rounded-full bg-blue-500"
+                            style={{ width: `${(item.count / max) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    )
+                  })
+                ) : (
+                  <p className="text-sm text-muted-foreground">No monthly activity yet.</p>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <p className="text-sm font-medium">Top Risk Flags</p>
+                {recentQuarterRiskFlags.length > 0 ? (
+                  recentQuarterRiskFlags.map((item) => {
+                    const max = recentQuarterRiskFlags[0]?.count ?? 1
+                    return (
+                      <div key={item.label} className="space-y-1">
+                        <div className="flex items-center justify-between gap-3 text-sm">
+                          <span className="truncate">{item.label}</span>
+                          <span className="text-muted-foreground">{item.count}</span>
+                        </div>
+                        <div className="h-2 rounded-full bg-muted">
+                          <div
+                            className="h-2 rounded-full bg-amber-500"
+                            style={{ width: `${(item.count / max) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    )
+                  })
+                ) : (
+                  <p className="text-sm text-muted-foreground">No AI risk flags this quarter.</p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }

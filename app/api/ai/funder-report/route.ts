@@ -27,6 +27,10 @@ function countBy<T extends string>(items: T[]) {
     .map(([label, count]) => ({ label, count }))
 }
 
+function getMonthLabel(dateStr: string) {
+  return new Date(`${dateStr}T00:00:00Z`).toLocaleString('en-US', { month: 'short', timeZone: 'UTC' })
+}
+
 export async function POST(req: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -41,7 +45,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid report period' }, { status: 400 })
   }
 
-  const { quarter, year } = parsed.data
+  const { quarter, year, includeNarrative } = parsed.data
   const { startDate, endDate, label } = getQuarterRange(year, quarter)
 
   const { data: services, error: servicesError } = await supabase
@@ -90,6 +94,9 @@ export async function POST(req: Request) {
     services.flatMap((service: any) => Array.isArray(service.ai_risk_flags) ? service.ai_risk_flags : []),
   )
   const followupsScheduled = services.filter((service) => !!service.ai_suggested_followup).length
+  const monthCounts = countBy(
+    services.map((service) => getMonthLabel(service.service_date)),
+  )
   const averageHousehold = (() => {
     const sizes = services
       .map((service: any) => service.clients?.household_size)
@@ -115,15 +122,20 @@ export async function POST(req: Request) {
     languages: languageCounts,
     genders: genderCounts,
     risk_flags: riskFlags,
+    monthly_volume: monthCounts,
   }
 
-  try {
-    const message = await anthropic.messages.create({
-      model: 'claude-sonnet-4-6',
-      max_tokens: 1800,
-      messages: [{
-        role: 'user',
-        content: `Write a draft quarterly nonprofit funder report in plain markdown for ${label}.
+  let narrative: string | null = null
+  let narrativeError: string | null = null
+
+  if (includeNarrative) {
+    try {
+      const message = await anthropic.messages.create({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1800,
+        messages: [{
+          role: 'user',
+          content: `Write a draft quarterly nonprofit funder report in plain markdown for ${label}.
 
 Use this exact structure:
 ## Executive Summary
@@ -147,24 +159,39 @@ ${JSON.stringify(stats, null, 2)}
 
 Sample service records:
 ${sampleNarratives}`,
-      }],
-    })
+        }],
+      })
 
-    const content = message.content[0]
-    if (content.type !== 'text') throw new Error('Unexpected response')
-
-    return NextResponse.json({
-      report: content.text,
-      meta: {
-        quarter,
-        year,
-        label,
-        totalServices: services.length,
-        totalClients: uniqueClientIds.length,
-      },
-    })
-  } catch (e: any) {
-    console.error('Funder report error:', e)
-    return NextResponse.json({ error: 'Failed to generate funder report' }, { status: 500 })
+      const content = message.content[0]
+      if (content.type !== 'text') throw new Error('Unexpected response')
+      narrative = content.text
+    } catch (e: any) {
+      console.error('Funder report narrative error:', e)
+      narrativeError = 'Narrative is unavailable right now'
+    }
   }
+
+  return NextResponse.json({
+    report: narrative,
+    narrativeError,
+    meta: {
+      quarter,
+      year,
+      label,
+      totalServices: services.length,
+      totalClients: uniqueClientIds.length,
+    },
+    stats: {
+      dateRange: `${startDate} to ${endDate}`,
+      totalServices: services.length,
+      totalClients: uniqueClientIds.length,
+      followupsScheduled,
+      averageHouseholdSize: averageHousehold,
+      serviceTypes: serviceTypeCounts,
+      languages: languageCounts,
+      genders: genderCounts,
+      riskFlags: riskFlags,
+      monthlyVolume: monthCounts,
+    },
+  })
 }
