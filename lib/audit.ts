@@ -70,9 +70,10 @@ export async function verifyChain(): Promise<{ valid: boolean; brokenAt?: number
   if (!entries || entries.length === 0) return { valid: true, totalEntries: 0 }
 
   for (let i = 1; i < entries.length; i++) {
+    const normalizedTimestamp = new Date(entries[i].timestamp).toISOString()
     const expected = computeHash(
       entries[i].previous_hash,
-      entries[i].timestamp,
+      normalizedTimestamp,
       entries[i].user_id ?? '',
       entries[i].action,
       entries[i].table_name,
