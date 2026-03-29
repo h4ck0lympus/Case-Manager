@@ -69,3 +69,11 @@ export const funderReportSchema = z.object({
   year: z.coerce.number().int().min(2020).max(2100),
   includeNarrative: z.boolean().optional().default(true),
 })
+
+export const createAppointmentSchema = z.object({
+  client_id: z.string().uuid('Invalid client ID'),
+  title: z.string().min(1, 'Title is required').max(200),
+  starts_at: z.string().min(1, 'Start time is required'),
+  ends_at: z.string().optional().nullable(),
+  notes: z.string().max(2000).optional().nullable(),
+})

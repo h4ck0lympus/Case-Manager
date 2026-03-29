@@ -65,6 +65,24 @@ export async function POST(req: Request) {
     if (followUpError) {
       console.error('Follow-up insert failed:', followUpError)
     }
+
+    const appointmentStart = new Date(`${parsed.data.ai_suggested_followup}T09:00:00`)
+    const appointmentEnd = new Date(`${parsed.data.ai_suggested_followup}T09:30:00`)
+
+    const { error: appointmentError } = await supabase
+      .from('appointments')
+      .insert({
+        client_id: parsed.data.client_id,
+        title: description,
+        starts_at: appointmentStart.toISOString(),
+        ends_at: appointmentEnd.toISOString(),
+        notes: `Auto-created from ${parsed.data.service_type} service entry`,
+        created_by: user.id,
+      })
+
+    if (appointmentError) {
+      console.error('Appointment auto-create failed:', appointmentError)
+    }
   }
 
   return NextResponse.json({ id: data.id }, { status: 201 })

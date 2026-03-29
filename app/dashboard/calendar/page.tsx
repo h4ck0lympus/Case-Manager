@@ -18,6 +18,20 @@ function endOfWeek(from: Date) {
   return date
 }
 
+function addDays(from: Date, days: number) {
+  const date = new Date(from)
+  date.setDate(date.getDate() + days)
+  return date
+}
+
+function isSameDay(left: Date, right: Date) {
+  return (
+    left.getFullYear() === right.getFullYear()
+    && left.getMonth() === right.getMonth()
+    && left.getDate() === right.getDate()
+  )
+}
+
 export default async function CalendarPage({ searchParams }: { searchParams: Promise<{ client_id?: string }> }) {
   const supabase = await createClient()
   const { client_id } = await searchParams
@@ -44,10 +58,12 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
     .lte('due_date', weekEnd.toISOString().slice(0, 10))
     .order('due_date', { ascending: true })
 
-  const todaysAppointments = (appointments ?? []).filter((appointment: any) => {
-    const startsAt = new Date(appointment.starts_at)
-    return startsAt >= today && startsAt < new Date(today.getTime() + 24 * 60 * 60 * 1000)
+  const overdueFollowUps = (dueFollowUps ?? []).filter((followUp: any) => {
+    const dueDate = new Date(`${followUp.due_date}T00:00:00`)
+    return dueDate < today
   })
+
+  const weekDays = Array.from({ length: 7 }, (_, index) => addDays(today, index))
 
   return (
     <div className="space-y-6">
@@ -60,64 +76,66 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Today</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {todaysAppointments.length > 0 ? (
-                todaysAppointments.map((appointment: any) => (
-                  <div key={appointment.id} className="rounded-md border p-3">
-                    <p className="font-medium">{appointment.title}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {appointment.clients?.first_name} {appointment.clients?.last_name}
-                    </p>
-                    <p className="text-sm text-muted-foreground">{formatDateTime(appointment.starts_at)}</p>
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-muted-foreground">No appointments scheduled for today.</p>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
               <CardTitle className="text-base">This Week</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              {appointments && appointments.length > 0 ? (
-                appointments.map((appointment: any) => (
-                  <div key={appointment.id} className="rounded-md border p-3">
-                    <div className="flex items-start justify-between gap-4">
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                {weekDays.map((day) => {
+                  const dayAppointments = (appointments ?? []).filter((appointment: any) =>
+                    isSameDay(new Date(appointment.starts_at), day),
+                  )
+                  const dayFollowUps = (dueFollowUps ?? []).filter((followUp: any) =>
+                    isSameDay(new Date(`${followUp.due_date}T00:00:00`), day),
+                  )
+
+                  return (
+                    <div key={day.toISOString()} className="rounded-md border p-3 space-y-3">
                       <div>
-                        <p className="font-medium">{appointment.title}</p>
-                        <p className="text-sm text-muted-foreground">
-                          <Link href={`/dashboard/clients/${appointment.client_id}`} className="hover:underline">
-                            {appointment.clients?.first_name} {appointment.clients?.last_name}
-                          </Link>
-                        </p>
+                        <p className="text-sm font-medium">{day.toLocaleDateString('en-US', { weekday: 'long' })}</p>
+                        <p className="text-xs text-muted-foreground">{formatDate(day.toISOString())}</p>
                       </div>
-                      <p className="text-sm text-muted-foreground whitespace-nowrap">
-                        {formatDateTime(appointment.starts_at)}
-                      </p>
+
+                      {dayAppointments.length === 0 && dayFollowUps.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">No items</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {dayAppointments.map((appointment: any) => (
+                            <div key={appointment.id} className="rounded-md bg-blue-50 border border-blue-100 p-2">
+                              <p className="text-sm font-medium text-blue-900">{appointment.title}</p>
+                              <p className="text-xs text-blue-800">
+                                {appointment.clients?.first_name} {appointment.clients?.last_name}
+                              </p>
+                              <p className="text-xs text-blue-700">{formatDateTime(appointment.starts_at)}</p>
+                            </div>
+                          ))}
+
+                          {dayFollowUps.map((followUp: any) => (
+                            <div key={followUp.id} className="rounded-md bg-amber-50 border border-amber-100 p-2">
+                              <p className="text-sm font-medium text-amber-900">{followUp.description}</p>
+                              <p className="text-xs text-amber-800">
+                                <Link href={`/dashboard/clients/${followUp.client_id}`} className="hover:underline">
+                                  {followUp.clients?.first_name} {followUp.clients?.last_name}
+                                </Link>
+                              </p>
+                              <p className="text-xs text-amber-700">Follow-up due</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    {appointment.notes && (
-                      <p className="mt-2 text-sm text-muted-foreground">{appointment.notes}</p>
-                    )}
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-muted-foreground">No appointments this week.</p>
-              )}
+                  )
+                })}
+              </div>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Pending Follow-ups</CardTitle>
+              <CardTitle className="text-base">Overdue Follow-ups</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              {dueFollowUps && dueFollowUps.length > 0 ? (
-                dueFollowUps.map((followUp: any) => (
+              {overdueFollowUps.length > 0 ? (
+                overdueFollowUps.map((followUp: any) => (
                   <div key={followUp.id} className="rounded-md border p-3">
                     <div className="flex items-start justify-between gap-4">
                       <div>
@@ -135,7 +153,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
                   </div>
                 ))
               ) : (
-                <p className="text-sm text-muted-foreground">No pending follow-ups this week.</p>
+                <p className="text-sm text-muted-foreground">No overdue follow-ups.</p>
               )}
             </CardContent>
           </Card>
