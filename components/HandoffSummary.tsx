@@ -63,7 +63,16 @@ export default function HandoffSummary({ clientId, clientName }: { clientId: str
             AI Handoff Summary
           </CardTitle>
           <div className="flex items-center gap-1">
-            <TTSButton text={summary} label="Read summary aloud" />
+            <TTSButton
+              text={summary
+                .replace(/^## .*/gm, '')
+                .replace(/\*\*(.*?)\*\*/g, '$1')
+                .replace(/^- /gm, '')
+                .replace(/\n{2,}/g, '\n')
+                .trim()
+                .slice(0, 2900)}
+              label="Read summary aloud"
+            />
             <Button
               variant="ghost"
               size="sm"
