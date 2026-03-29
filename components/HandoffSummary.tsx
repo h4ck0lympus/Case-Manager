@@ -1,9 +1,147 @@
 'use client'
 import { useState } from 'react'
+import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Loader2, Sparkles, RefreshCw } from 'lucide-react'
 import TTSButton from './TTSButton'
+
+function renderInline(text: string): ReactNode[] {
+  return text.split(/(\*\*.*?\*\*)/g).filter(Boolean).map((part, index) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={index}>{part.slice(2, -2)}</strong>
+    }
+
+    return <span key={index}>{part}</span>
+  })
+}
+
+function renderSummary(summary: string) {
+  const lines = summary.replace(/\r\n/g, '\n').split('\n')
+  const elements: ReactNode[] = []
+  let paragraph: string[] = []
+  let bullets: string[] = []
+  let tableRows: string[][] = []
+
+  const flushParagraph = () => {
+    if (paragraph.length === 0) return
+    elements.push(
+      <p key={`p-${elements.length}`} className="leading-7 text-foreground/90">
+        {renderInline(paragraph.join(' '))}
+      </p>,
+    )
+    paragraph = []
+  }
+
+  const flushBullets = () => {
+    if (bullets.length === 0) return
+    elements.push(
+      <ul key={`ul-${elements.length}`} className="ml-5 list-disc space-y-1 text-foreground/90">
+        {bullets.map((item, index) => (
+          <li key={index}>{renderInline(item)}</li>
+        ))}
+      </ul>,
+    )
+    bullets = []
+  }
+
+  const flushTable = () => {
+    if (tableRows.length === 0) return
+    const [header, ...rows] = tableRows
+    elements.push(
+      <div key={`table-${elements.length}`} className="overflow-x-auto rounded-md border">
+        <table className="min-w-full border-collapse text-left text-sm">
+          <thead className="bg-muted/50">
+            <tr>
+              {header.map((cell, index) => (
+                <th key={index} className="border-b px-3 py-2 font-medium text-foreground">
+                  {renderInline(cell)}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, rowIndex) => (
+              <tr key={rowIndex} className="align-top">
+                {header.map((_, cellIndex) => (
+                  <td key={cellIndex} className="border-t px-3 py-2 text-foreground/90">
+                    {renderInline(row[cellIndex] ?? '')}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>,
+    )
+    tableRows = []
+  }
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim()
+
+    if (!line) {
+      flushParagraph()
+      flushBullets()
+      flushTable()
+      continue
+    }
+
+    if (/^---+$/.test(line)) {
+      flushParagraph()
+      flushBullets()
+      flushTable()
+      elements.push(<hr key={`hr-${elements.length}`} className="my-4 border-border" />)
+      continue
+    }
+
+    const heading = line.match(/^#{1,3}\s+(.*)$/)
+    if (heading) {
+      flushParagraph()
+      flushBullets()
+      flushTable()
+      elements.push(
+        <h3 key={`h-${elements.length}`} className="mt-6 text-base font-semibold text-foreground first:mt-0">
+          {heading[1]}
+        </h3>,
+      )
+      continue
+    }
+
+    const bullet = line.match(/^[-*]\s+(.*)$/)
+    if (bullet) {
+      flushParagraph()
+      flushTable()
+      bullets.push(bullet[1])
+      continue
+    }
+
+    if (line.includes('|')) {
+      flushParagraph()
+      flushBullets()
+
+      const cells = line
+        .split('|')
+        .map((cell) => cell.trim())
+        .filter((cell, index, parts) => !(index === 0 && cell === '') && !(index === parts.length - 1 && cell === ''))
+
+      const isDivider = cells.length > 0 && cells.every((cell) => /^:?-{3,}:?$/.test(cell))
+      if (isDivider) continue
+
+      tableRows.push(cells)
+      continue
+    }
+
+    flushTable()
+    paragraph.push(line)
+  }
+
+  flushParagraph()
+  flushBullets()
+  flushTable()
+
+  return elements
+}
 
 export default function HandoffSummary({ clientId, clientName }: { clientId: string; clientName: string }) {
   const [summary, setSummary] = useState<string | null>(null)
@@ -88,18 +226,9 @@ export default function HandoffSummary({ clientId, clientName }: { clientId: str
         <p className="text-xs text-muted-foreground">AI-generated — always review before sharing</p>
       </CardHeader>
       <CardContent>
-        <div
-          className="prose prose-sm max-w-none text-sm"
-          aria-live="polite"
-          aria-label="AI generated handoff summary"
-          dangerouslySetInnerHTML={{
-            __html: summary
-              .replace(/## (.*)/g, '<h3 class="font-semibold text-base mt-4 mb-1">$1</h3>')
-              .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-              .replace(/^- (.*)/gm, '<li class="ml-4 list-disc">$1</li>')
-              .replace(/\n\n/g, '<br/>')
-          }}
-        />
+        <div className="space-y-4 text-sm" aria-live="polite" aria-label="AI generated handoff summary">
+          {renderSummary(summary)}
+        </div>
       </CardContent>
     </Card>
   )

@@ -63,6 +63,12 @@ Write a structured handoff summary using these exact markdown section headers:
 ## Risk Factors
 ## Recommended Next Steps
 
+Formatting rules:
+- Use simple markdown only: headings, short paragraphs, and bullet lists
+- Do not use markdown tables
+- Do not include code fences
+- Do not restate the section headers in another style
+
 Be concise, professional, and actionable. Focus on what the incoming case manager needs to know immediately.`,
       }],
     })

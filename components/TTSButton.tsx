@@ -7,7 +7,7 @@ export default function TTSButton({ text, label = 'Read aloud' }: { text: string
   const [loading, setLoading] = useState(false)
   const [playing, setPlaying] = useState(false)
   const [audio, setAudio] = useState<HTMLAudioElement | null>(null)
-  const [error, setError] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function handleClick() {
     if (playing && audio) {
@@ -18,14 +18,17 @@ export default function TTSButton({ text, label = 'Read aloud' }: { text: string
     }
 
     setLoading(true)
-    setError(false)
+    setError(null)
     try {
       const res = await fetch('/api/ai/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text }),
       })
-      if (!res.ok) throw new Error('TTS failed')
+      if (!res.ok) {
+        const body = await res.json().catch(() => null)
+        throw new Error(body?.error ?? 'TTS failed')
+      }
 
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
@@ -36,7 +39,7 @@ export default function TTSButton({ text, label = 'Read aloud' }: { text: string
       await audioEl.play()
     } catch (e) {
       console.error('TTS error:', e)
-      setError(true)
+      setError(e instanceof Error ? e.message : 'TTS failed')
     } finally {
       setLoading(false)
     }
@@ -51,7 +54,7 @@ export default function TTSButton({ text, label = 'Read aloud' }: { text: string
       disabled={loading}
       aria-label={playing ? 'Stop reading' : label}
       className={`text-muted-foreground hover:text-foreground ${error ? 'text-red-500' : ''}`}
-      title={error ? 'TTS failed — check API key' : label}
+      title={error ?? label}
     >
       {loading
         ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
