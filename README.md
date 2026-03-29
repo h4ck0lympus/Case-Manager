@@ -74,7 +74,7 @@ No UPDATE or DELETE policies exist on the `audit_log` table. Enforced at the dat
 - Vercel
 - Node.js built-in `crypto` for hash chaining
 
-Runs on free tiers. Cost is $0/month.
+Infrastructure (Supabase, Vercel) runs on free tiers. AI API usage (Anthropic, ElevenLabs) costs roughly $15/month for a typical small nonprofit.
 
 ---
 
