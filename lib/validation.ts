@@ -67,4 +67,5 @@ export const intakeImageExtractionSchema = z.object({
 export const funderReportSchema = z.object({
   quarter: z.coerce.number().int().min(1).max(4),
   year: z.coerce.number().int().min(2020).max(2100),
+  includeNarrative: z.boolean().optional().default(true),
 })

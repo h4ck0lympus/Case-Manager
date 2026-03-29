@@ -138,70 +138,6 @@ export default async function DashboardPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent services */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Recent Services</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {recentServices && recentServices.length > 0 ? (
-              <ul className="space-y-3" role="list">
-                {recentServices.map((s: any) => (
-                  <li key={s.id} className="flex items-start justify-between gap-2">
-                    <div>
-                      <Link
-                        href={`/dashboard/clients/${s.client_id}`}
-                        className="text-sm font-medium hover:underline focus:underline focus:outline-none"
-                      >
-                        {s.clients?.first_name} {s.clients?.last_name}
-                      </Link>
-                      <p className="text-xs text-muted-foreground">{s.service_type}</p>
-                    </div>
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">{formatDate(s.service_date)}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-muted-foreground">No services logged yet.</p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Risk alerts */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-500" aria-hidden="true" />
-              AI Risk Flags
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {riskyEntries && riskyEntries.length > 0 ? (
-              <ul className="space-y-3" role="list">
-                {riskyEntries.map((s: any) => (
-                  <li key={s.id} className="space-y-1">
-                    <Link
-                      href={`/dashboard/clients/${s.client_id}`}
-                      className="text-sm font-medium hover:underline focus:underline focus:outline-none"
-                    >
-                      {s.clients?.first_name} {s.clients?.last_name}
-                    </Link>
-                    <div className="flex flex-wrap gap-1">
-                      {(s.ai_risk_flags as string[]).map((flag, i) => (
-                        <Badge key={i} variant="danger" className="text-xs">{flag}</Badge>
-                      ))}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-muted-foreground">No active risk flags.</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
       {profile?.role === 'admin' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card>
@@ -291,6 +227,70 @@ export default async function DashboardPage() {
           </Card>
         </div>
       )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Recent services */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Recent Services</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {recentServices && recentServices.length > 0 ? (
+              <ul className="space-y-3" role="list">
+                {recentServices.map((s: any) => (
+                  <li key={s.id} className="flex items-start justify-between gap-2">
+                    <div>
+                      <Link
+                        href={`/dashboard/clients/${s.client_id}`}
+                        className="text-sm font-medium hover:underline focus:underline focus:outline-none"
+                      >
+                        {s.clients?.first_name} {s.clients?.last_name}
+                      </Link>
+                      <p className="text-xs text-muted-foreground">{s.service_type}</p>
+                    </div>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">{formatDate(s.service_date)}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted-foreground">No services logged yet.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Risk alerts */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-amber-500" aria-hidden="true" />
+              AI Risk Flags
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {riskyEntries && riskyEntries.length > 0 ? (
+              <ul className="space-y-3" role="list">
+                {riskyEntries.map((s: any) => (
+                  <li key={s.id} className="space-y-1">
+                    <Link
+                      href={`/dashboard/clients/${s.client_id}`}
+                      className="text-sm font-medium hover:underline focus:underline focus:outline-none"
+                    >
+                      {s.clients?.first_name} {s.clients?.last_name}
+                    </Link>
+                    <div className="flex flex-wrap gap-1">
+                      {(s.ai_risk_flags as string[]).map((flag, i) => (
+                        <Badge key={i} variant="danger" className="text-xs">{flag}</Badge>
+                      ))}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted-foreground">No active risk flags.</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Loader2, FileText, RefreshCw } from 'lucide-react'
+import { Loader2, FileText, RefreshCw, BarChart3 } from 'lucide-react'
 
 type ReportMeta = {
   quarter: number
@@ -13,6 +13,63 @@ type ReportMeta = {
   label: string
   totalServices: number
   totalClients: number
+}
+
+type CountItem = {
+  label: string
+  count: number
+}
+
+type ReportStats = {
+  dateRange: string
+  totalServices: number
+  totalClients: number
+  followupsScheduled: number
+  averageHouseholdSize: string | null
+  serviceTypes: CountItem[]
+  languages: CountItem[]
+  genders: CountItem[]
+  riskFlags: CountItem[]
+  monthlyVolume: CountItem[]
+}
+
+function ChartBlock({
+  title,
+  items,
+  emptyLabel,
+}: {
+  title: string
+  items: CountItem[]
+  emptyLabel: string
+}) {
+  const max = Math.max(...items.map((item) => item.count), 0)
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm">{title}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {items.length === 0 && (
+          <p className="text-sm text-muted-foreground">{emptyLabel}</p>
+        )}
+        {items.map((item) => (
+          <div key={item.label} className="space-y-1">
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <span className="truncate">{item.label}</span>
+              <span className="text-muted-foreground">{item.count}</span>
+            </div>
+            <div className="h-2 rounded-full bg-muted">
+              <div
+                className="h-2 rounded-full bg-primary"
+                style={{ width: `${max === 0 ? 0 : (item.count / max) * 100}%` }}
+              />
+            </div>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  )
 }
 
 function renderInline(text: string): ReactNode[] {
@@ -163,34 +220,61 @@ export default function FunderReportGenerator() {
   const [year, setYear] = useState(String(now.getFullYear()))
   const [report, setReport] = useState<string | null>(null)
   const [meta, setMeta] = useState<ReportMeta | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [stats, setStats] = useState<ReportStats | null>(null)
+  const [dataLoading, setDataLoading] = useState(false)
+  const [narrativeLoading, setNarrativeLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [narrativeError, setNarrativeError] = useState<string | null>(null)
+
+  async function fetchReport(includeNarrative: boolean) {
+    const res = await fetch('/api/ai/funder-report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        quarter: Number(quarter),
+        year: Number(year),
+        includeNarrative,
+      }),
+    })
+
+    const body = await res.json().catch(() => null)
+    if (!res.ok) {
+      throw new Error(body?.error ?? 'Failed to generate report')
+    }
+
+    return body
+  }
 
   async function generate() {
-    setLoading(true)
+    setDataLoading(true)
     setError(null)
+    setNarrativeError(null)
+    setReport(null)
 
     try {
-      const res = await fetch('/api/ai/funder-report', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          quarter: Number(quarter),
-          year: Number(year),
-        }),
-      })
-
-      const body = await res.json().catch(() => null)
-      if (!res.ok) {
-        throw new Error(body?.error ?? 'Failed to generate report')
-      }
-
+      const body = await fetchReport(false)
       setReport(body.report)
       setMeta(body.meta)
+      setStats(body.stats)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to generate report')
     } finally {
-      setLoading(false)
+      setDataLoading(false)
+    }
+  }
+
+  async function generateNarrative() {
+    setNarrativeLoading(true)
+    setNarrativeError(null)
+
+    try {
+      const body = await fetchReport(true)
+      setReport(body.report)
+      setNarrativeError(body.narrativeError ?? null)
+    } catch (e) {
+      setNarrativeError(e instanceof Error ? e.message : 'Failed to generate narrative')
+    } finally {
+      setNarrativeLoading(false)
     }
   }
 
@@ -200,10 +284,10 @@ export default function FunderReportGenerator() {
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
             <FileText className="h-4 w-4 text-primary" aria-hidden="true" />
-            AI Funder Report
+            Funder Report Builder
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Generate a draft quarterly narrative report from client and service data.
+            Build a quarterly report from client and service data, then add an AI draft narrative.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -238,16 +322,18 @@ export default function FunderReportGenerator() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <Button onClick={generate} disabled={loading}>
-              {loading
+            <Button onClick={generate} disabled={dataLoading || narrativeLoading}>
+              {dataLoading
                 ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                 : <FileText className="h-4 w-4" aria-hidden="true" />}
-              {loading ? 'Generating report…' : 'Generate report'}
+              {dataLoading ? 'Loading report data…' : 'Load report data'}
             </Button>
-            {report && (
-              <Button variant="outline" onClick={generate} disabled={loading}>
-                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} aria-hidden="true" />
-                Regenerate
+            {stats && (
+              <Button variant="outline" onClick={generateNarrative} disabled={dataLoading || narrativeLoading}>
+                {narrativeLoading
+                  ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  : <RefreshCw className="h-4 w-4" aria-hidden="true" />}
+                {report ? 'Refresh AI narrative' : 'Generate AI narrative'}
               </Button>
             )}
           </div>
@@ -256,20 +342,95 @@ export default function FunderReportGenerator() {
         </CardContent>
       </Card>
 
-      {meta && report && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">{meta.label} Draft Report</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              {meta.totalClients} clients served and {meta.totalServices} services logged in this period.
-            </p>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4 text-sm" aria-live="polite" aria-label="AI generated funder report">
-              {renderReport(report)}
-            </div>
-          </CardContent>
-        </Card>
+      {meta && stats && (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <BarChart3 className="h-4 w-4 text-primary" aria-hidden="true" />
+                {meta.label} Report Snapshot
+              </CardTitle>
+              <p className="text-sm text-muted-foreground">{stats.dateRange}</p>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <Card>
+                  <CardContent className="p-4">
+                    <p className="text-sm text-muted-foreground">Clients Served</p>
+                    <p className="mt-1 text-2xl font-bold">{stats.totalClients}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <p className="text-sm text-muted-foreground">Services Logged</p>
+                    <p className="mt-1 text-2xl font-bold">{stats.totalServices}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <p className="text-sm text-muted-foreground">Follow-ups Set</p>
+                    <p className="mt-1 text-2xl font-bold">{stats.followupsScheduled}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <p className="text-sm text-muted-foreground">Avg Household Size</p>
+                    <p className="mt-1 text-2xl font-bold">{stats.averageHouseholdSize ?? 'N/A'}</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-2">
+                <ChartBlock title="Services by Type" items={stats.serviceTypes} emptyLabel="No service data for this period." />
+                <ChartBlock title="Services by Month" items={stats.monthlyVolume} emptyLabel="No monthly data for this period." />
+                <ChartBlock title="Primary Languages" items={stats.languages} emptyLabel="No language data for this period." />
+                <ChartBlock title="Risk Flags" items={stats.riskFlags} emptyLabel="No risk flags for this period." />
+              </div>
+            </CardContent>
+          </Card>
+
+          {report && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">AI Draft Narrative</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  This section is generated from the report data above. Review before sharing.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4 text-sm" aria-live="polite" aria-label="AI generated funder report">
+                  {renderReport(report)}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {!report && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">AI Draft Narrative</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Optional. Generate this after the charts load.
+                </p>
+              </CardHeader>
+              <CardContent>
+                {narrativeLoading ? (
+                  <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    Writing AI narrative from the report data...
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Load report data first, then generate the AI narrative when you need it.
+                  </p>
+                )}
+                {narrativeError && (
+                  <p role="alert" className="mt-3 text-sm text-red-600">{narrativeError}</p>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
       )}
     </div>
   )
