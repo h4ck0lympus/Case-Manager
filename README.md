@@ -12,24 +12,41 @@ Built for Opportunity Hack x WiCS @ ASU, March 2026. AI tools were used througho
 
 ## What it does
 
-Case workers spend a lot of time on documentation. This tool cuts that down. You can speak a note out loud, and the app turns it into a structured record with a service type, summary, action items, risk flags, and a suggested follow-up date.
+Case workers spend a lot of time on documentation. This tool cuts that down.
 
-It also reads notes back aloud, which helps staff who prefer not to read from a screen. And it can generate a handoff brief from a client's full service history in one click.
+You can speak a note out loud and the app turns it into a structured record with a service type, summary, action items, risk flags, and a suggested follow-up date. It also reads notes back aloud, which helps staff who prefer not to read from a screen. One click generates a full clinical handoff brief from a client's entire service history.
 
-Every data change is logged to an audit trail that uses SHA-256 hash chaining. If any entry is modified or deleted, the chain breaks and the app shows it. This matters for grant accountability and data integrity.
+Every data change is logged to a tamper-evident audit trail using SHA-256 hash chaining. If any entry is modified or deleted, the chain breaks and the app shows it. This matters for grant accountability and compliance.
 
 ---
 
 ## Features
 
+**Client management**
+- Client registration with demographics (name, DOB, contact, language, household size, gender)
+- Searchable client list
+- Full service history per client
+
+**AI features**
 - Voice dictation to structured case notes (ElevenLabs STT + Claude)
 - Text-to-speech readback on any case note (ElevenLabs TTS)
-- AI-generated client handoff summaries (Claude)
-- Tamper-evident audit log with SHA-256 hash chaining
+- AI-generated client handoff summary (Claude)
+- AI quarterly funder report generator (Claude)
+
+**Scheduling**
+- Appointment scheduling per client
+- Calendar view of upcoming appointments
+
+**Reporting**
+- Dashboard with active client count, services this month, pending follow-ups
+- Funder report generator with AI narrative (admin only)
+
+**Security and compliance**
+- Tamper-evident audit log with SHA-256 hash chaining (admin only)
 - Google SSO and email/password auth via Supabase
 - Row-level security enforced at the database layer
-- Zod validation on all API routes
-- Accessible UI built on Radix UI primitives
+- Zod validation on every API route
+- No API route is publicly accessible without authentication
 
 ---
 
@@ -38,12 +55,12 @@ Every data change is logged to an audit trail that uses SHA-256 hash chaining. I
 Each log entry stores:
 
 ```
-entry_hash = SHA256(previous_hash + timestamp + user_id + action + table + record_id)
+entry_hash = SHA256(previous_hash + user_email + action + table + record_id)
 ```
 
-You cannot change or delete an entry without breaking every hash that comes after it. The audit page shows a live integrity check. If the chain is intact, you get a green badge. If it's broken, the app tells you which entry ID is the problem.
+You cannot change or delete an entry without breaking every hash that comes after it. The audit page shows a live integrity check. Green badge means the chain is intact. If it breaks, the app shows which entry ID is the problem.
 
-No UPDATE or DELETE policies exist on the `audit_log` table. That's enforced at the database layer, not just the application layer.
+No UPDATE or DELETE policies exist on the `audit_log` table. Enforced at the database layer, not just the API.
 
 ---
 
@@ -91,15 +108,17 @@ ANTHROPIC_API_KEY=sk-ant-...
 ELEVENLABS_API_KEY=sk_...
 ```
 
-On Vercel, add these in Project Settings under Environment Variables.
+Add the same variables in Vercel under Project Settings > Environment Variables.
 
 ### 4. Set your account as admin
 
-Run this in the Supabase SQL Editor to get access to the audit log:
+Run this in the Supabase SQL Editor:
 
 ```sql
 UPDATE profiles SET role = 'admin' WHERE email = 'your@email.com';
 ```
+
+Admins get access to the audit log and funder reports pages.
 
 ### 5. Run locally
 
@@ -111,20 +130,23 @@ npm run dev
 
 ## Demo walkthrough
 
-1. Create a client with the intake form
-2. Go to "Log Service" and click the mic button. Say something like: "Met with Maria today, she mentioned skipping meals this week and seems anxious about housing. Will follow up in 5 days about a food bank referral." The form fills itself in.
-3. On any existing case note, click the speaker icon to have it read back aloud.
-4. Open a client profile and click "Generate Handoff Summary" to get a structured clinical brief.
-5. As an admin, open the Audit Log page to see the hash chain and the integrity badge.
+1. Log in with demo credentials or Google SSO
+2. Open the client list. 12 seeded clients are ready with service history.
+3. Open a client profile. Click "Generate Handoff Summary" to get a structured clinical brief in a few seconds.
+4. Go to "Log Service" and click the mic button. Say something like: "Met with Maria today, she mentioned skipping meals and seems anxious about housing. Will follow up in 5 days about a food bank referral." The form fills itself in.
+5. Click the speaker icon on any case note to have it read back aloud.
+6. Go to Calendar to see scheduled appointments.
+7. As an admin, open Funder Reports and generate a quarterly report.
+8. As an admin, open the Audit Log to see the hash chain and the green integrity badge.
 
 ---
 
-## Security notes
+## Security
 
-- No secrets in source code. All keys stay in `.env.local`.
-- No API route is publicly accessible. Every endpoint checks `supabase.auth.getUser()` and returns 401 if the user is not authenticated.
-- Admin-only routes do a second role check against the `profiles` table and return 403 if the user is not an admin.
+- No secrets in source code. All keys stay in environment variables.
+- No API route is publicly accessible. Every endpoint checks authentication and returns 401 if the user is not logged in.
+- Admin-only routes do a second role check and return 403 for non-admins.
 - Auth is handled by Supabase. No hand-rolled authentication.
-- RLS policies mean data isolation is enforced at the database layer, not just the API layer. Even if an API route was bypassed, the DB would still reject unauthorized reads and writes.
-- Audio is transcribed then discarded. It is never stored.
-- Client PII is never mixed between LLM calls.
+- RLS policies enforce data isolation at the database layer, not just the API layer.
+- Audio is transcribed then discarded. Never stored.
+- Client PII is not logged in the audit trail. Only record IDs and action types are hashed.
