@@ -39,6 +39,8 @@ export default function ServiceForm({
     },
   })
 
+  const serviceType = watch('service_type')
+
   const handleTranscript = useCallback((transcript: string) => {
     const current = watch('notes')
     setValue('notes', current ? `${current}\n\n[Voice] ${transcript}` : transcript)
@@ -48,7 +50,7 @@ export default function ServiceForm({
     setAiData(data)
     if (data.summary) setValue('ai_summary', data.summary)
     if (data.service_type && SERVICE_TYPES.includes(data.service_type as any)) {
-      setValue('service_type', data.service_type as any)
+      setValue('service_type', data.service_type as any, { shouldDirty: true, shouldTouch: true })
     }
     if (data.action_items) setValue('ai_action_items', data.action_items)
     if (data.risk_flags) setValue('ai_risk_flags', data.risk_flags)
@@ -116,8 +118,8 @@ export default function ServiceForm({
             <div className="space-y-1.5">
               <Label htmlFor="service_type">Service Type *</Label>
               <Select
-                value={watch('service_type') || undefined}
-                onValueChange={(v) => setValue('service_type', v as any)}
+                value={serviceType || undefined}
+                onValueChange={(v) => setValue('service_type', v as any, { shouldDirty: true })}
               >
                 <SelectTrigger id="service_type" aria-required="true" aria-label="Select service type">
                   <SelectValue placeholder="Select type…" />
