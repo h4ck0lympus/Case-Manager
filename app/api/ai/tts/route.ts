@@ -21,9 +21,9 @@ export async function POST(req: Request) {
   try {
     const client = new ElevenLabsClient({ apiKey: process.env.ELEVENLABS_API_KEY })
 
-    const audioStream = await client.textToSpeech.convert('Rachel', {
+    const audioStream = await client.textToSpeech.convert('21m00Tcm4TlvDq8ikWAM', {
       text: parsed.data.text,
-      model_id: 'eleven_turbo_v2_5',
+      model_id: 'eleven_turbo_v2_5_turbo',
       voice_settings: { stability: 0.5, similarity_boost: 0.75 },
     })
 
