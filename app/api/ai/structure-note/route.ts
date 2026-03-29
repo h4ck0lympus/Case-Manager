@@ -36,7 +36,7 @@ Return ONLY valid JSON, no markdown code blocks, no explanation:
   "service_type": "the most appropriate service type from the available list",
   "action_items": ["specific actionable follow-up item 1", "item 2"],
   "risk_flags": ["risk flag if any serious concern mentioned"] or [],
-  "suggested_followup_date": "YYYY-MM-DD if a specific timeframe was mentioned, otherwise null",
+  "suggested_followup_days": <integer number of days from today if a timeframe was mentioned, otherwise null>,
   "mood_assessment": "stable" or "concerning" or "crisis" or "unknown"
 }`,
       }],
@@ -46,6 +46,16 @@ Return ONLY valid JSON, no markdown code blocks, no explanation:
     if (content.type !== 'text') throw new Error('Unexpected response type')
 
     const structured = JSON.parse(content.text)
+
+    if (typeof structured.suggested_followup_days === 'number') {
+      const date = new Date()
+      date.setDate(date.getDate() + structured.suggested_followup_days)
+      structured.suggested_followup_date = date.toISOString().split('T')[0]
+    } else {
+      structured.suggested_followup_date = null
+    }
+    delete structured.suggested_followup_days
+
     return NextResponse.json(structured)
   } catch (e: any) {
     console.error('Structure note error:', e)

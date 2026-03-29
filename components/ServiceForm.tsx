@@ -29,7 +29,7 @@ export default function ServiceForm({
   const [error, setError] = useState<string | null>(null)
   const [aiData, setAiData] = useState<StructuredNote | null>(null)
 
-  const { register, handleSubmit, setValue, watch, formState: { errors, isSubmitting } } = useForm<FormData>({
+  const { register, handleSubmit, setValue, watch, formState: { errors, isSubmitting }, } = useForm<FormData>({
     resolver: zodResolver(createServiceSchema) as any,
     defaultValues: {
       client_id: defaultClientId ?? '',
@@ -116,7 +116,7 @@ export default function ServiceForm({
             <div className="space-y-1.5">
               <Label htmlFor="service_type">Service Type *</Label>
               <Select
-                defaultValue={aiData?.service_type && SERVICE_TYPES.includes(aiData.service_type as any) ? aiData.service_type : undefined}
+                value={watch('service_type') || undefined}
                 onValueChange={(v) => setValue('service_type', v as any)}
               >
                 <SelectTrigger id="service_type" aria-required="true" aria-label="Select service type">

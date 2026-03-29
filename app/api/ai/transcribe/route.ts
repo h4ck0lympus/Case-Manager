@@ -26,7 +26,13 @@ export async function POST(req: Request) {
       file: audio,
       model_id: 'scribe_v1',
     })
-    return NextResponse.json({ transcript: transcription.text })
+
+    const cleaned = transcription.text
+      .replace(/\b(uh+h*|um+|hmm+|er+|ah+|mhm+)\b,?\s*/gi, ' ')
+      .replace(/\s{2,}/g, ' ')
+      .trim()
+
+    return NextResponse.json({ transcript: cleaned })
   } catch (e: any) {
     console.error('ElevenLabs STT error:', e)
     return NextResponse.json({ error: 'Transcription failed' }, { status: 500 })
