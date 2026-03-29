@@ -52,3 +52,14 @@ export const summarizeClientSchema = z.object({
 export const ttsSchema = z.object({
   text: z.string().min(1).max(3000),
 })
+
+export const intakeImageExtractionSchema = z.object({
+  first_name: z.string().max(100).optional().nullable(),
+  last_name: z.string().max(100).optional().nullable(),
+  date_of_birth: z.string().optional().nullable(),
+  phone: z.string().max(20).optional().nullable(),
+  email: z.string().optional().nullable(),
+  language: z.string().max(50).optional().nullable(),
+  gender: z.string().max(50).optional().nullable(),
+  household_size: z.coerce.number().int().min(1).max(20).optional().nullable(),
+})
