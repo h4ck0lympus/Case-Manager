@@ -63,3 +63,8 @@ export const intakeImageExtractionSchema = z.object({
   gender: z.string().max(50).optional().nullable(),
   household_size: z.coerce.number().int().min(1).max(20).optional().nullable(),
 })
+
+export const funderReportSchema = z.object({
+  quarter: z.coerce.number().int().min(1).max(4),
+  year: z.coerce.number().int().min(2020).max(2100),
+})
